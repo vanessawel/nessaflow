@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C9B8FF"/><stop offset="0.5" stop-color="#FFC6DC"/><stop offset="1" stop-color="#FFE0B8"/></linearGradient>
+<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#7a5a9a" flood-opacity="0.22"/></filter>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="150" cy="150" r="30" fill="#B8F0DA"/><circle cx="560" cy="140" r="24" fill="#FFF3A8"/><circle cx="90" cy="520" r="16" fill="#AEE2FF"/><circle cx="940" cy="560" r="20" fill="#B8F0DA"/><circle cx="760" cy="90" r="12" fill="#fff" opacity=".8"/><circle cx="300" cy="80" r="10" fill="#fff" opacity=".8"/>
+<!-- little checklist bubble -->
+<g filter="url(#sh)" transform="translate(810 230) scale(.85) rotate(10) translate(-512 -125)"><rect x="430" y="70" width="164" height="110" rx="30" fill="#fff"/>
+<path d="M462 112 l12 12 l22 -24" stroke="#3E8F6E" stroke-width="11" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="510" y="104" width="58" height="16" rx="8" fill="#E7DEFF"/>
+<path d="M462 150 l12 12 l22 -24" stroke="#3A78A8" stroke-width="11" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="510" y="142" width="44" height="16" rx="8" fill="#FFE0EC"/></g>
+
+<!-- ===== Ilvy (behind, center) ===== -->
+<g filter="url(#sh)">
+<path d="M440 470 Q512 450 584 470 C640 560 690 700 700 1024 L324 1024 C334 700 384 560 440 470 Z" fill="#FBF4EA"/><path d="M470 640 Q512 690 554 640 Q540 760 512 800 Q484 760 470 640 Z" fill="#FFFDF8"/>
+<!-- ears -->
+<path d="M404 340 L430 225 Q440 205 458 222 L520 300 Z" fill="#FBF4EA"/>
+<path d="M620 340 L594 225 Q584 205 566 222 L504 300 Z" fill="#FBF4EA"/>
+<path d="M424 318 L440 245 L492 302 Z" fill="#F7C9D2"/><path d="M600 318 L584 245 L532 302 Z" fill="#F7C9D2"/>
+<!-- head -->
+<ellipse cx="512" cy="380" rx="120" ry="115" fill="#FBF4EA"/>
+<!-- snout -->
+<path d="M452 410 Q512 380 572 410 Q585 500 512 520 Q439 500 452 410 Z" fill="#FFFDF8"/>
+<ellipse cx="460" cy="345" rx="40" ry="26" fill="#F1E4D2" opacity=".7"/>
+<!-- eyes -->
+<ellipse cx="465" cy="372" rx="17" ry="20" fill="#5A3A28"/><ellipse cx="559" cy="372" rx="17" ry="20" fill="#5A3A28"/>
+<circle cx="471" cy="364" r="6" fill="#fff"/><circle cx="565" cy="364" r="6" fill="#fff"/>
+<!-- nose -->
+<path d="M488 450 Q512 438 536 450 Q534 474 512 478 Q490 474 488 450 Z" fill="#B5766B"/>
+<path d="M512 478 L512 492 M512 492 Q496 506 482 496 M512 492 Q528 506 542 496" stroke="#8C5A50" stroke-width="7" fill="none" stroke-linecap="round"/>
+<ellipse cx="438" cy="425" rx="18" ry="11" fill="#FFB3C7" opacity=".6"/><ellipse cx="586" cy="425" rx="18" ry="11" fill="#FFB3C7" opacity=".6"/>
+<!-- collar -->
+<path d="M436 560 Q512 600 588 560 L584 596 Q512 636 440 596 Z" fill="#7C8CC4"/>
+<circle cx="512" cy="628" r="26" fill="#FFF3A8" stroke="#F2CF6B" stroke-width="5"/>
+<path d="M500 628 l9 9 l15 -18" stroke="#C99A2E" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+
+<!-- ===== Vanessa (left) ===== -->
+<g filter="url(#sh)">
+<!-- back hair long -->
+<path d="M120 470 C110 330 180 280 255 280 C330 280 400 330 390 470 L400 760 Q255 800 110 760 Z" fill="#9A5B3C"/>
+<!-- body -->
+<path d="M90 1024 C95 820 170 760 255 755 C340 760 415 820 420 1024 Z" fill="#B9A8F0"/>
+<rect x="225" y="600" width="60" height="90" rx="26" fill="#EDBFA2"/>
+<!-- hair strands over shoulders -->
+<path d="M130 560 Q120 700 150 790 L195 790 Q170 680 175 560 Z" fill="#9A5B3C"/>
+<path d="M380 560 Q390 700 360 790 L315 790 Q340 680 335 560 Z" fill="#9A5B3C"/>
+<!-- face -->
+<ellipse cx="255" cy="470" rx="112" ry="135" fill="#F6D2B8"/>
+<!-- bangs -->
+<path d="M140 430 C140 330 200 300 255 300 C315 300 372 330 370 430 Q340 405 300 410 Q275 395 255 408 Q230 395 205 410 Q170 405 140 430 Z" fill="#A9653F"/>
+<path d="M190 345 q20 -14 40 -6 M270 335 q24 -8 44 6" stroke="#C07B52" stroke-width="7" fill="none" stroke-linecap="round"/>
+<!-- eyes blue -->
+<ellipse cx="210" cy="470" rx="15" ry="16" fill="#4E7BB0"/><ellipse cx="300" cy="470" rx="15" ry="16" fill="#4E7BB0"/>
+<circle cx="210" cy="470" r="7" fill="#22202E"/><circle cx="300" cy="470" r="7" fill="#22202E"/>
+<circle cx="215" cy="465" r="4" fill="#fff"/><circle cx="305" cy="465" r="4" fill="#fff"/>
+<path d="M188 448 q22 -12 44 -2 M278 446 q22 -10 44 2" stroke="#7A4A30" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M255 485 q-8 26 2 32" stroke="#E0A88A" stroke-width="6" fill="none" stroke-linecap="round"/>
+<ellipse cx="182" cy="520" rx="22" ry="13" fill="#FFA7BE" opacity=".7"/><ellipse cx="328" cy="520" rx="22" ry="13" fill="#FFA7BE" opacity=".7"/>
+<!-- big smile -->
+<path d="M200 535 Q255 530 310 535 Q296 600 255 602 Q214 600 200 535 Z" fill="#A23F55"/>
+<path d="M204 536 Q255 531 306 536 L302 556 Q255 562 208 556 Z" fill="#fff"/>
+<path d="M226 590 Q255 576 284 590 Q270 602 255 602 Q240 602 226 590 Z" fill="#F27E9B"/>
+</g>
+
+<!-- ===== Dominik (right) ===== -->
+<g filter="url(#sh)">
+<path d="M604 1024 C609 820 684 760 770 755 C856 760 931 820 936 1024 Z" fill="#9FD3F0"/>
+<path d="M705 730 Q770 790 835 730 L845 790 Q770 840 695 790 Z" fill="#B8F0DA"/>
+<rect x="740" y="610" width="60" height="110" rx="26" fill="#E8B794"/>
+<!-- ears -->
+<ellipse cx="660" cy="475" rx="22" ry="34" fill="#E8B794"/><ellipse cx="880" cy="475" rx="22" ry="34" fill="#E8B794"/>
+<!-- face -->
+<ellipse cx="770" cy="470" rx="110" ry="140" fill="#F1C7A5"/>
+<!-- hair: short dark wavy -->
+<path d="M655 440 C640 330 700 300 770 300 C850 300 900 340 885 440 Q870 380 830 372 Q800 352 770 366 Q740 350 710 372 Q675 380 655 440 Z" fill="#3E2A20"/>
+<circle cx="700" cy="335" r="34" fill="#3E2A20"/><circle cx="745" cy="312" r="36" fill="#3E2A20"/><circle cx="795" cy="310" r="36" fill="#3E2A20"/><circle cx="842" cy="330" r="34" fill="#3E2A20"/><circle cx="672" cy="380" r="24" fill="#3E2A20"/><circle cx="870" cy="380" r="24" fill="#3E2A20"/>
+<path d="M715 325 q12 -14 24 0 M765 305 q12 -14 24 0 M812 318 q12 -14 24 0" stroke="#6A4734" stroke-width="6" fill="none" stroke-linecap="round"/>
+<!-- brows -->
+<path d="M705 425 q24 -12 48 -2 M787 423 q24 -10 48 2" stroke="#2E1F18" stroke-width="10" fill="none" stroke-linecap="round"/>
+<!-- smiling eyes -->
+<path d="M710 462 q20 -18 40 0 M790 462 q20 -18 40 0" stroke="#2E2230" stroke-width="9" fill="none" stroke-linecap="round"/>
+<path d="M770 475 q-12 36 0 42" stroke="#D49A78" stroke-width="7" fill="none" stroke-linecap="round"/>
+<ellipse cx="700" cy="515" rx="20" ry="12" fill="#FFB3C7" opacity=".65"/><ellipse cx="840" cy="515" rx="20" ry="12" fill="#FFB3C7" opacity=".65"/>
+<!-- mustache -->
+<path d="M722 540 q48 -22 96 0 q-48 10 -96 0 Z" fill="#3E2A20"/>
+<!-- smile with gap teeth -->
+<path d="M718 550 Q770 546 822 550 Q808 604 770 606 Q732 604 718 550 Z" fill="#8A3A47"/>
+<path d="M722 551 Q770 547 818 551 L814 570 Q770 576 726 570 Z" fill="#fff"/>
+<rect x="765" y="549" width="10" height="24" rx="3" fill="#8A3A47"/>
+<!-- goatee -->
+<path d="M738 612 Q770 600 802 612 Q800 680 770 692 Q740 680 738 612 Z" fill="#3E2A20"/>
+<path d="M758 640 q12 12 24 0" stroke="#5B4030" stroke-width="5" fill="none" stroke-linecap="round"/>
+</g>
+</svg>
