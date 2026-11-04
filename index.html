@@ -175,7 +175,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.5';
+const VERSION='2.6';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -203,6 +203,7 @@ function starter(){
   s.tasks=[{id:uid(),title:'Wäsche waschen (Beispiel)',area:'org',steps:[{id:uid(),t:'Wäschekorb ins Bad tragen',done:false},{id:uid(),t:'Maschine anstellen',done:false},{id:uid(),t:'Wäsche aufhängen',done:false}],today:dkey(),done:false}];
   return s;
 }
+const EVENING=[['Frühstück + Kaffee vorbereiten',10],['Tasche packen',5],['Kleidung rauslegen',5],['Duschen',15],['Skincare',10],['Ilvy-Gassi-Runde',15]];
 const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga',15],['Kuscheleinheit mit Ilvy',10],['Anziehen',5],['Haare machen',5],['Schminken',10],['Schmuck anlegen',2],['Kaffee kochen und Frühstück einpacken',10],['Gassi-Runde = Weg zur Arbeit',45]];
 function defRoutines(){return[
   {id:'morgen',name:'Morgenroutine',time:'06:00',steps:[{id:uid(),t:'Ein Glas Wasser trinken'},{id:uid(),t:'Medikamente nehmen'},{id:uid(),t:'Zähne putzen'},{id:uid(),t:'3 Aufgaben für heute wählen'}]},
@@ -218,6 +219,7 @@ function migrate(s){
   if(!s._morning2){const m=s.routines.find(r=>r.id==='morgen');if(m){m.steps=MORNING.map(([t,min])=>({id:uid(),t,min}))}s._morning2=true}
   if(!s._morning3){const m=s.routines.find(r=>r.id==='morgen');const g=m&&m.steps.find(x=>x.t==='Gassi gehen (mind. 30 Min.)');if(g){g.t='Gassi-Runde = Weg zur Arbeit';g.min=45}s._morning3=true}
   if(!s._morning4){const m=s.routines.find(r=>r.id==='morgen');if(m&&m.time==='07:30')m.time='06:00';s._morning4=true}
+  if(!s._evening1){const a=s.routines.find(r=>r.id==='abend');if(a){a.steps=EVENING.map(([t,min])=>({id:uid(),t,min}));a.time=''}s._evening1=true}
   s.v=2; return s;
 }
 let S; try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
@@ -310,8 +312,8 @@ function addMin(hhmm,m){if(!hhmm)return'';const [h,mi]=hhmm.split(':').map(Numbe
 function routineHtml(r,editable){
   const rd=rDone(r.id), ed=ui.redit===r.id, pct=r.steps.length?rd.length/r.steps.length*100:0;
   const total=r.steps.reduce((a,s)=>a+(s.min||0),0), leftMin=r.steps.filter(s=>!rd.includes(s.id)).reduce((a,s)=>a+(s.min||0),0);
-  return `<div class="row"><div class="grow">${r.time?`<div class="eyebrow">${esc(r.time)} Uhr</div>`:''}<h2>${esc(r.name)}</h2></div><strong class="num">${rd.length}/${r.steps.length}</strong>${editable?`<button class="btn sm ghost" data-act="redit" data-r="${r.id}">${ed?'Fertig':'Bearbeiten'}</button>`:''}</div>
-    ${total?`<p class="small"><strong>${fmtMin(total)}</strong> insgesamt${r.time?` · Start ${esc(r.time)} Uhr, fertig gegen ${addMin(r.time,total)} Uhr`:''}${rd.length&&leftMin?` · noch ${fmtMin(leftMin)}`:''}</p>`:''}
+  return `<div class="row"><div class="grow">${r.time?`<div class="eyebrow">${esc(r.time)} Uhr</div>`:r.id==='abend'?'<div class="eyebrow">Flexibel nach dem Abendkurs</div>':''}<h2>${esc(r.name)}</h2></div><strong class="num">${rd.length}/${r.steps.length}</strong>${editable?`<button class="btn sm ghost" data-act="redit" data-r="${r.id}">${ed?'Fertig':'Bearbeiten'}</button>`:''}</div>
+    ${total?`<p class="small"><strong>${fmtMin(total)}</strong> insgesamt${r.time?` · Start ${esc(r.time)} Uhr, fertig gegen ${addMin(r.time,total)} Uhr`:leftMin?` · wenn du jetzt startest, fertig gegen ${addMin(new Date().toTimeString().slice(0,5),leftMin)} Uhr`:''}${rd.length&&leftMin?` · noch ${fmtMin(leftMin)}`:''}</p>`:''}
     <div class="bar"><b style="width:${pct}%"></b></div>
     <div class="steps">${r.steps.map((s,i)=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}</span>${s.min?`<span class="muted small num">${s.min} Min.</span>`:''}${ed?`<button class="x" data-act="rmove" data-r="${r.id}" data-s="${s.id}" data-d="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
     ${ed?`<div class="fr">${inp('r-'+r.id,'Neuer Schritt','text','data-submit="radd" data-r="'+r.id+'"')}${inp('rm-'+r.id,'Min.','text','inputmode="numeric" style="flex:0 0 70px"')}<button class="btn sm" data-act="radd" data-r="${r.id}">+</button></div>
