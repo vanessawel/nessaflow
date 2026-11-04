@@ -148,6 +148,7 @@ input[type=date].in,input[type=time].in{min-height:46px}
 .kzone{position:absolute;top:0;bottom:0;background:var(--good-soft);border-left:2px solid var(--good);border-right:2px solid var(--good)}
 .col.w>b{background:var(--warn)}
 select.in{background-image:none}
+.in.mini{width:64px;flex:none;min-height:36px;padding:6px 8px;text-align:right}
 .insight{background:var(--sun-soft);border-radius:12px;padding:12px 14px}
 details>summary{list-style:none;cursor:pointer}
 details>summary::-webkit-details-marker{display:none}
@@ -180,7 +181,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.9';
+const VERSION='2.10';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -213,7 +214,7 @@ const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga'
 function defRoutines(){return[
   {id:'morgen',name:'Morgenroutine',time:'06:00',steps:[{id:uid(),t:'Ein Glas Wasser trinken'},{id:uid(),t:'Medikamente nehmen'},{id:uid(),t:'Zähne putzen'},{id:uid(),t:'3 Aufgaben für heute wählen'}]},
   {id:'abend',name:'Abendroutine',time:'21:30',steps:[{id:uid(),t:'Tasche für morgen packen'},{id:uid(),t:'Handy ans Ladekabel, weg vom Bett'},{id:uid(),t:'Kurz notieren, was gut lief'}]}]}
-const ILVY=[['Dehnübungen machen'],['Gassirunde am Morgen',45],['Näpfe wechseln/waschen'],['Frisches Wasser geben'],['Morgens füttern'],['Gassirunde am Mittag'],['Mittagssnack füttern'],['Gassirunde am Abend'],['Physio-Übungen',null,[1,3,5]],['Bürsten'],['Abends füttern'],['Letzte Löserunde']];
+const ILVY=[['Dehnübungen machen'],['Gassirunde am Morgen',45],['Näpfe wechseln/waschen'],['Frisches Wasser geben'],['Morgens füttern'],['Gassirunde am Mittag',15],['Mittagssnack füttern'],['Gassirunde am Abend',45],['Physio-Übungen',null,[1,3,5]],['Bürsten'],['Abends füttern'],['Letzte Löserunde',15]];
 const ilvySteps=()=>ILVY.map(([t,min,days])=>{const s={id:uid(),t};if(min)s.min=min;if(days)s.days=days;return s});
 const ilvyRoutine=()=>({id:'ilvy',name:'Ilvy heute',time:'',steps:ilvySteps(),_v:2});
 function migrate(s){
@@ -222,7 +223,8 @@ function migrate(s){
   for(const k in b) if(s[k]===undefined) s[k]=b[k];
   if(!s.routines.length) s.routines=defRoutines();
   if(!s.routines.find(r=>r.id==='ilvy')) s.routines.push(ilvyRoutine());
-  {const iv=s.routines.find(r=>r.id==='ilvy');if(iv&&!iv._v){iv.steps=ilvySteps();iv._v=2}}
+  {const iv=s.routines.find(r=>r.id==='ilvy');if(iv&&!iv._v){iv.steps=ilvySteps();iv._v=3}
+   if(iv&&iv._v===2){ILVY.forEach(([t,min,days])=>{let st=iv.steps.find(x=>x.t===t);if(!st){st={id:uid(),t};if(days)st.days=days;iv.steps.push(st)}if(min)st.min=min});iv._v=3}}
   s.tasks.forEach(t=>{if(!t.area)t.area='org';if(!t.steps)t.steps=[]});
   if(!s._morning2){const m=s.routines.find(r=>r.id==='morgen');if(m){m.steps=MORNING.map(([t,min])=>({id:uid(),t,min}))}s._morning2=true}
   if(!s._morning3){const m=s.routines.find(r=>r.id==='morgen');const g=m&&m.steps.find(x=>x.t==='Gassi gehen (mind. 30 Min.)');if(g){g.t='Gassi-Runde = Weg zur Arbeit';g.min=45}s._morning3=true}
@@ -332,7 +334,7 @@ function routineHtml(r,editable){
   return `<div class="row"><div class="grow">${r.time?`<div class="eyebrow">${esc(r.time)} Uhr</div>`:r.id==='abend'?'<div class="eyebrow">Flexibel nach dem Abendkurs</div>':''}<h2>${esc(r.name)}</h2></div><strong class="num">${rd.length}/${steps.length}</strong>${editable?`<button class="btn sm ghost" data-act="redit" data-r="${r.id}">${ed?'Fertig':'Bearbeiten'}</button>`:''}</div>
     ${total?`<p class="small"><strong>${fmtMin(total)}</strong> insgesamt${r.time?` · Start ${esc(r.time)} Uhr, fertig gegen ${addMin(r.time,total)} Uhr`:leftMin?` · wenn du jetzt startest, fertig gegen ${addMin(new Date().toTimeString().slice(0,5),leftMin)} Uhr`:''}${rd.length&&leftMin?` · noch ${fmtMin(leftMin)}`:''}</p>`:''}
     <div class="bar"><b style="width:${pct}%"></b></div>
-    <div class="steps">${steps.map((s,i)=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}${s.days?` <span class="pill">${s.days.map(d=>WD[d]).join(', ')}</span>`:''}</span>${s.min?`<span class="muted small num">${s.min} Min.</span>`:''}${ed?`<button class="x" data-act="rmove" data-r="${r.id}" data-s="${s.id}" data-d="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
+    <div class="steps">${steps.map((s,i)=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}${s.days?` <span class="pill">${s.days.map(d=>WD[d]).join(', ')}</span>`:''}</span>${ed?`<input class="in mini" type="text" inputmode="numeric" placeholder="Min." value="${s.min||''}" data-change="smin" data-r="${r.id}" data-s="${s.id}" aria-label="Minuten">`:s.min?`<span class="muted small num">${s.min} Min.</span>`:''}${ed?`<button class="x" data-act="rmove" data-r="${r.id}" data-s="${s.id}" data-d="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
     ${ed?`<div class="fr">${inp('r-'+r.id,'Neuer Schritt','text','data-submit="radd" data-r="'+r.id+'"')}${inp('rm-'+r.id,'Min.','text','inputmode="numeric" style="flex:0 0 70px"')}<button class="btn sm" data-act="radd" data-r="${r.id}">+</button></div>
       ${r.time?`<div class="fr"><span class="eyebrow">Uhrzeit</span><input class="in narrow" type="time" id="rt-${r.id}" value="${esc(r.time)}" data-change="rtime" data-r="${r.id}"></div>`:''}`:''}`;
 }
@@ -792,6 +794,7 @@ document.addEventListener('change',e=>{
   if(el.id==='importIn'&&el.files[0]){const fr=new FileReader();fr.onload=()=>{try{const st=JSON.parse(fr.result);if(st&&st.v&&Array.isArray(st.tasks)){S=migrate(st);save();render();toast('Sicherung geladen.')}else toast('Diese Datei ist keine NessaFlow-Sicherung.')}catch(err){toast('Diese Datei ist keine NessaFlow-Sicherung.')}};fr.readAsText(el.files[0]);return}
   if(el.dataset.change==='rtime'){const r=routine(el.dataset.r);if(el.value){r.time=el.value;save()}}
   if(el.dataset.change==='dish'&&el.value!==''){const m=fv('k-m')||(new Date().getHours()<11?'fruehstueck':new Date().getHours()<16?'mittag':'abend');const d=S.dishes[m][Number(el.value)];ui.f['k-n']=d.name;ui.f['k-k']=String(d.kcal);render();return}
+  if(el.dataset.change==='smin'){const r=routine(el.dataset.r),st=r&&r.steps.find(x=>x.id===el.dataset.s);if(st){const m=parseInt(el.value);if(m>0)st.min=m;else delete st.min;save();render()}return}
   if(el.dataset.change==='hnote'){H().note=el.value.trim();save();toast('Notiz gespeichert.')}
   if(el.type==='date'||el.type==='time')ui.f[el.id]=el.value;
 });
