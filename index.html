@@ -175,7 +175,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.2';
+const VERSION='2.3';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -203,6 +203,7 @@ function starter(){
   s.tasks=[{id:uid(),title:'Wäsche waschen (Beispiel)',area:'org',steps:[{id:uid(),t:'Wäschekorb ins Bad tragen',done:false},{id:uid(),t:'Maschine anstellen',done:false},{id:uid(),t:'Wäsche aufhängen',done:false}],today:dkey(),done:false}];
   return s;
 }
+const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga',15],['Kuscheleinheit mit Ilvy',10],['Anziehen',5],['Haare machen',5],['Schminken',10],['Schmuck anlegen',2],['Kaffee kochen und Frühstück einpacken',10],['Gassi gehen (mind. 30 Min.)',30]];
 function defRoutines(){return[
   {id:'morgen',name:'Morgenroutine',time:'07:30',steps:[{id:uid(),t:'Ein Glas Wasser trinken'},{id:uid(),t:'Medikamente nehmen'},{id:uid(),t:'Zähne putzen'},{id:uid(),t:'3 Aufgaben für heute wählen'}]},
   {id:'abend',name:'Abendroutine',time:'21:30',steps:[{id:uid(),t:'Tasche für morgen packen'},{id:uid(),t:'Handy ans Ladekabel, weg vom Bett'},{id:uid(),t:'Kurz notieren, was gut lief'}]}]}
@@ -214,6 +215,7 @@ function migrate(s){
   if(!s.routines.length) s.routines=defRoutines();
   if(!s.routines.find(r=>r.id==='ilvy')) s.routines.push(ilvyRoutine());
   s.tasks.forEach(t=>{if(!t.area)t.area='org';if(!t.steps)t.steps=[]});
+  if(!s._morning2){const m=s.routines.find(r=>r.id==='morgen');if(m){m.steps=MORNING.map(([t,min])=>({id:uid(),t,min}))}s._morning2=true}
   s.v=2; return s;
 }
 let S; try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
@@ -301,12 +303,16 @@ function taskHtml(t,mode){ // mode: today | inbox | plain
       ${open&&!t.done?`<div class="fr form">${inp('step-'+t.id,'Kleiner Schritt, 5 bis 15 Minuten','text','data-submit="addstep" data-id="'+t.id+'"')}<button class="btn sm" data-act="addstep" data-id="${t.id}">+</button></div>`:''}
     </div></div>`;
 }
+const fmtMin=m=>m>=60?Math.floor(m/60)+' Std.'+(m%60?' '+(m%60)+' Min.':''):m+' Min.';
+function addMin(hhmm,m){if(!hhmm)return'';const [h,mi]=hhmm.split(':').map(Number);const t=h*60+mi+m;return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
 function routineHtml(r,editable){
   const rd=rDone(r.id), ed=ui.redit===r.id, pct=r.steps.length?rd.length/r.steps.length*100:0;
+  const total=r.steps.reduce((a,s)=>a+(s.min||0),0), leftMin=r.steps.filter(s=>!rd.includes(s.id)).reduce((a,s)=>a+(s.min||0),0);
   return `<div class="row"><div class="grow">${r.time?`<div class="eyebrow">${esc(r.time)} Uhr</div>`:''}<h2>${esc(r.name)}</h2></div><strong class="num">${rd.length}/${r.steps.length}</strong>${editable?`<button class="btn sm ghost" data-act="redit" data-r="${r.id}">${ed?'Fertig':'Bearbeiten'}</button>`:''}</div>
+    ${total?`<p class="small"><strong>${fmtMin(total)}</strong> insgesamt${r.time?` · Start ${esc(r.time)} Uhr, fertig gegen ${addMin(r.time,total)} Uhr`:''}${rd.length&&leftMin?` · noch ${fmtMin(leftMin)}`:''}</p>`:''}
     <div class="bar"><b style="width:${pct}%"></b></div>
-    <div class="steps">${r.steps.map(s=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}</span>${ed?`<button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
-    ${ed?`<div class="fr">${inp('r-'+r.id,'Neuer Schritt','text','data-submit="radd" data-r="'+r.id+'"')}<button class="btn sm" data-act="radd" data-r="${r.id}">+</button></div>
+    <div class="steps">${r.steps.map((s,i)=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}</span>${s.min?`<span class="muted small num">${s.min} Min.</span>`:''}${ed?`<button class="x" data-act="rmove" data-r="${r.id}" data-s="${s.id}" data-d="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
+    ${ed?`<div class="fr">${inp('r-'+r.id,'Neuer Schritt','text','data-submit="radd" data-r="'+r.id+'"')}${inp('rm-'+r.id,'Min.','text','inputmode="numeric" style="flex:0 0 70px"')}<button class="btn sm" data-act="radd" data-r="${r.id}">+</button></div>
       ${r.time?`<div class="fr"><span class="eyebrow">Uhrzeit</span><input class="in narrow" type="time" id="rt-${r.id}" value="${esc(r.time)}" data-change="rtime" data-r="${r.id}"></div>`:''}`:''}`;
 }
 function routineWeek(r){
@@ -329,10 +335,9 @@ function vOrg(){
   <header class="top"><div><div class="eyebrow">${WD[d.getDay()]}, ${d.getDate()}. ${MON[d.getMonth()]}</div><h1>${greet}, Vanessa</h1></div>${SB_URL?syncLine():''}</header>
   ${ui.conflict?syncCard():''}
   <section class="card">
-    <div class="sec-h"><h2>Deine 3 für heute</h2>${tt.length?`<span class="muted small num">${tt.filter(t=>t.done).length} von ${tt.length} erledigt</span>`:''}</div>
-    ${slots}
-    ${ui.picking?pickerHtml():''}
-    <p class="muted small">Mehr als drei braucht es nicht. Alles andere wartet entspannt.</p>
+    <div class="sec-h"><h2>Inbox</h2><span class="muted small num">${inbox.length}</span></div>
+    ${addArea('org','Was geht dir durch den Kopf?')}
+    ${inbox.map(t=>taskHtml(t,'inbox')).join('')||'<p class="muted small">Leer und ruhig. Schön.</p>'}
   </section>
   <section class="card">
     <div class="sec-h"><h2>Termine</h2>${evToday.length?`<span class="pill good">${evToday.length} heute</span>`:''}</div>
@@ -343,6 +348,12 @@ function vOrg(){
       <div class="fr"><input class="in" type="date" id="ev-d" value="${esc(fv('ev-d')||today())}"><input class="in narrow" type="time" id="ev-h" value="${esc(fv('ev-h'))}"><button class="btn" data-act="addev">+</button></div>
     </div>
   </section>
+  <section class="card">
+    <div class="sec-h"><h2>Deine 3 für heute</h2>${tt.length?`<span class="muted small num">${tt.filter(t=>t.done).length} von ${tt.length} erledigt</span>`:''}</div>
+    ${slots}
+    ${ui.picking?pickerHtml():''}
+    <p class="muted small">Mehr als drei braucht es nicht. Alles andere wartet entspannt.</p>
+  </section>
   <section class="card sun">
     <div class="eyebrow">Jetzt dran</div>
     ${routineHtml(r,false)}
@@ -351,11 +362,6 @@ function vOrg(){
     <p class="muted small">Deine Routinen nehmen dir den Stress aus dem Tag. Jeder Haken zählt, auch an Tagen, an denen nicht alles klappt.</p>
     <button class="link" data-act="showother">${ui.other?'Ausblenden':(r.id==='morgen'?'Abendroutine':'Morgenroutine')+' anzeigen'}</button>
     ${ui.other?`<div class="card" style="background:var(--surface);border:0">${routineHtml(routine(r.id==='morgen'?'abend':'morgen'),false)}</div>`:''}
-  </section>
-  <section class="card">
-    <div class="sec-h"><h2>Inbox</h2><span class="muted small num">${inbox.length}</span></div>
-    ${addArea('org','Was geht dir durch den Kopf?')}
-    ${inbox.map(t=>taskHtml(t,'inbox')).join('')||'<p class="muted small">Leer und ruhig. Schön.</p>'}
   </section>
   <details class="card" ${ui.rOpen?'open':''} data-toggle="rOpen"><summary class="sec-h"><h2>Routinen bearbeiten</h2><span class="muted small">${ui.rOpen?'Zuklappen':'Aufklappen'}</span></summary>
     ${['morgen','abend'].map(id=>routine(id)).filter(Boolean).map(r=>`<div class="card" style="background:var(--sunk);border:0">${routineHtml(r,true)}</div>`).join('')}
@@ -645,7 +651,8 @@ const A={
   allev(){ui.allEv=!ui.allEv},
   rstep(b){const k=today();S.rlog[k]=S.rlog[k]||{};const arr=S.rlog[k][b.dataset.r]=S.rlog[k][b.dataset.r]||[];const i=arr.indexOf(b.dataset.s);if(i>=0)arr.splice(i,1);else{arr.push(b.dataset.s);const r=routine(b.dataset.r);if(arr.length===r.steps.length)toast(r.name+' geschafft!')}},
   redit(b){ui.redit=ui.redit===b.dataset.r?null:b.dataset.r},
-  radd(b){const r=routine(b.dataset.r),id='r-'+r.id,v=fv(id).trim();if(v){r.steps.push({id:uid(),t:v});clear(id);ui.refocus=id}},
+  radd(b){const r=routine(b.dataset.r),id='r-'+r.id,v=fv(id).trim(),m=parseInt(fv('rm-'+r.id))||0;if(v){r.steps.push({id:uid(),t:v,min:m||undefined});clear(id,'rm-'+r.id);ui.refocus=id}},
+  rmove(b){const r=routine(b.dataset.r),i=r.steps.findIndex(x=>x.id===b.dataset.s),j=i+Number(b.dataset.d);if(i<0||j<0||j>=r.steps.length)return false;[r.steps[i],r.steps[j]]=[r.steps[j],r.steps[i]]},
   rdel(b){const r=routine(b.dataset.r);r.steps=r.steps.filter(x=>x.id!==b.dataset.s)},
   h(b){const h=H(),k=b.dataset.k,v=Number(b.dataset.v);h[k]=h[k]===v?undefined:v},
   water(b){const h=H(),v=Number(b.dataset.v);h.water=h.water===v?v-1:v},
