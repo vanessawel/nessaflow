@@ -171,6 +171,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
+const VERSION='2.1';
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -315,7 +316,8 @@ function vOrg(){
     ${['morgen','abend'].map(id=>routine(id)).filter(Boolean).map(r=>`<div class="card" style="background:var(--sunk);border:0">${routineHtml(r,true)}</div>`).join('')}
   </details>
   <section class="card"><h2>Daten sichern</h2><p class="muted small">Alles liegt nur auf diesem iPhone. Sichere es ab und zu als Datei, zum Beispiel in iCloud Drive.</p>
-    <div class="row wrapr"><button class="btn sm" data-act="export">Sicherung speichern</button><label class="btn sm ghost" for="importIn" tabindex="0">Sicherung laden</label><input type="file" id="importIn" accept="application/json,.json" hidden></div></section>`;
+    <div class="row wrapr"><button class="btn sm" data-act="export">Sicherung speichern</button><label class="btn sm ghost" for="importIn" tabindex="0">Sicherung laden</label><input type="file" id="importIn" accept="application/json,.json" hidden></div>
+    <div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span class="muted small grow">Version ${VERSION}</span><button class="btn sm ghost" data-act="update">Nach Update suchen</button></div></section>`;
 }
 function pickerHtml(){
   const list=S.tasks.filter(t=>!t.today&&!t.done);
@@ -617,6 +619,7 @@ const A={
   ideaadd(){const t=fv('i-t').trim();if(t){S.ideas.push({id:uid(),t});clear('i-t');ui.refocus='i-t'}},
   ideado(b){const i=S.ideas.find(x=>x.id===b.dataset.id);ui.f['q-o']=i.t;S.ideas=S.ideas.filter(x=>x!==i);toast('Trag es oben bei Quality Time ein.')},
   ideadel(b){S.ideas=S.ideas.filter(x=>x.id!==b.dataset.id)},
+  async update(){toast('Suche nach Updates…');try{const r=await navigator.serviceWorker?.getRegistration();if(r){await r.update();const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}setTimeout(()=>location.reload(),600);return false},
   async export(){const blob=new Blob([JSON.stringify(S)],{type:'application/json'}),name='nessaflow-'+today()+'.json';
     try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'NessaFlow-Sicherung'});return false}}catch(err){if(err&&err.name==='AbortError')return false}
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();return false},
@@ -656,7 +659,11 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!F)render()});
 
 render();
-if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  const had=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+  let reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!reloaded&&!F){reloaded=true;location.reload()}});
+}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 })();
 </script>
