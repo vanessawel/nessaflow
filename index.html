@@ -139,6 +139,10 @@ input[type=date].in,input[type=time].in{min-height:46px}
 .rdots i.part{background:color-mix(in srgb,var(--good) 40%,var(--surface));border-color:var(--good)}
 .rdots i.on{background:var(--good);border-color:var(--good)}
 .rdots i.now{outline:2px solid var(--fg);outline-offset:1px}
+.sync{font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;flex:none}
+.sync.ok i{background:var(--good)}
+.sync.err i{background:var(--warn)}
 .insight{background:var(--sun-soft);border-radius:12px;padding:12px 14px}
 details>summary{list-style:none;cursor:pointer}
 details>summary::-webkit-details-marker{display:none}
@@ -171,7 +175,9 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.1';
+const VERSION='2.2';
+const SB_URL=''; // Supabase Project URL
+const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -214,7 +220,45 @@ let S; try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
 S=migrate(S);
 let tab='org', ui={f:{}};
 try{tab=localStorage.getItem(LS+'-tab2')||'org'}catch(e){}
-function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('Speichern hat nicht geklappt. Ist der Speicher voll?')}}
+function save(bump=true){if(bump)S._ts=Date.now();try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('Speichern hat nicht geklappt. Ist der Speicher voll?')}if(bump)schedulePush()}
+
+/* ---------- sync (Supabase) ---------- */
+let sb=null,sbUser=null,sync={state:SB_URL?'out':'off',at:0},pushT=null,pushing=false,pullDone=false;
+function loadSb(){return new Promise((res,rej)=>{if(window.supabase)return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+function setSync(st){sync.state=st;if(st==='ok')sync.at=Date.now();const el=document.getElementById('syncline');if(el)el.outerHTML=syncLine()}
+function syncLine(){
+  const m={off:'Nur auf diesem Gerät',out:'Nicht angemeldet, Daten nur auf diesem Gerät',syncing:'Synchronisiere…',ok:'Synchronisiert'+(sync.at?' um '+new Date(sync.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):''),err:'Offline. Änderungen werden gesendet, sobald du wieder online bist.',ask:'Bitte wählen, welche Daten du behalten möchtest'};
+  return `<span class="sync ${sync.state==='ok'?'ok':sync.state==='err'?'err':''}" id="syncline"><i></i>${m[sync.state]||''}</span>`;
+}
+async function sbInit(){
+  if(!SB_URL||!SB_KEY)return;
+  try{await loadSb()}catch(e){setSync('err');return}
+  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'nessaflow-auth',detectSessionInUrl:true}});
+  const {data}=await sb.auth.getSession(); sbUser=data.session?data.session.user:null;
+  sb.auth.onAuthStateChange((ev,sess)=>{const was=sbUser;sbUser=sess?sess.user:null;if(sbUser&&!was){pull()}if(!sbUser){setSync('out')}render()});
+  if(sbUser)pull();else setSync('out');
+  render();
+}
+async function pull(){
+  if(!sb||!sbUser)return; setSync('syncing');
+  const {data,error}=await sb.from('nessaflow_state').select('state,updated_at').eq('user_id',sbUser.id).maybeSingle();
+  if(error){setSync('err');return}
+  pullDone=true;
+  if(!data){await push();return}
+  if(!S._linked){ui.conflict=data;setSync('ask');render();return}
+  if(Number(data.updated_at)>(S._ts||0)){applyRemote(data)}
+  else if(Number(data.updated_at)<(S._ts||0)){await push()}
+  else setSync('ok');
+}
+function applyRemote(data){S=migrate(data.state);S._ts=Number(data.updated_at);S._linked=true;save(false);setSync('ok');if(!F)render()}
+function schedulePush(){if(!sb||!sbUser||!pullDone||!S._linked&&ui.conflict)return;clearTimeout(pushT);pushT=setTimeout(push,1200)}
+async function push(){
+  if(!sb||!sbUser)return; if(pushing){schedulePush();return}
+  pushing=true;S._linked=true;if(!S._ts)S._ts=Date.now();save(false);setSync('syncing');
+  const {error}=await sb.from('nessaflow_state').upsert({user_id:sbUser.id,state:S,updated_at:S._ts});
+  pushing=false; setSync(error?'err':'ok');
+}
+window.addEventListener('online',()=>{if(sbUser)pull()});
 const fv=id=>ui.f[id]??'';
 const inp=(id,ph,type='text',extra='')=>`<input class="in" type="${type}" id="${id}" placeholder="${esc(ph)}" value="${esc(fv(id))}" ${extra}>`;
 const clear=(...ids)=>ids.forEach(i=>delete ui.f[i]);
@@ -226,7 +270,7 @@ function rollover(){
   const n=S.tasks.length;
   S.tasks=S.tasks.filter(x=>!(x.done&&x.doneAt&&daysUntil(x.doneAt)<-14));
   const ne=S.events.length; S.events=S.events.filter(e=>daysUntil(e.date)>=-30);
-  if(ch||n!==S.tasks.length||ne!==S.events.length) save();
+  if(ch||n!==S.tasks.length||ne!==S.events.length) save(false);
 }
 const H=(k=today())=>S.health[k]||(S.health[k]={});
 const rDone=(rid,k=today())=>((S.rlog[k]||{})[rid])||[];
@@ -282,7 +326,8 @@ function vOrg(){
   const ev=S.events.filter(e=>daysUntil(e.date)>=0).sort((a,b)=>(a.date+(a.time||'99')).localeCompare(b.date+(b.time||'99')));
   const evToday=ev.filter(e=>e.date===today());
   return `
-  <header class="top"><div><div class="eyebrow">${WD[d.getDay()]}, ${d.getDate()}. ${MON[d.getMonth()]}</div><h1>${greet}, Vanessa</h1></div></header>
+  <header class="top"><div><div class="eyebrow">${WD[d.getDay()]}, ${d.getDate()}. ${MON[d.getMonth()]}</div><h1>${greet}, Vanessa</h1></div>${SB_URL?syncLine():''}</header>
+  ${ui.conflict?syncCard():''}
   <section class="card">
     <div class="sec-h"><h2>Deine 3 für heute</h2>${tt.length?`<span class="muted small num">${tt.filter(t=>t.done).length} von ${tt.length} erledigt</span>`:''}</div>
     ${slots}
@@ -315,9 +360,23 @@ function vOrg(){
   <details class="card" ${ui.rOpen?'open':''} data-toggle="rOpen"><summary class="sec-h"><h2>Routinen bearbeiten</h2><span class="muted small">${ui.rOpen?'Zuklappen':'Aufklappen'}</span></summary>
     ${['morgen','abend'].map(id=>routine(id)).filter(Boolean).map(r=>`<div class="card" style="background:var(--sunk);border:0">${routineHtml(r,true)}</div>`).join('')}
   </details>
+  ${ui.conflict?'':syncCard()}
   <section class="card"><h2>Daten sichern</h2><p class="muted small">Alles liegt nur auf diesem iPhone. Sichere es ab und zu als Datei, zum Beispiel in iCloud Drive.</p>
     <div class="row wrapr"><button class="btn sm" data-act="export">Sicherung speichern</button><label class="btn sm ghost" for="importIn" tabindex="0">Sicherung laden</label><input type="file" id="importIn" accept="application/json,.json" hidden></div>
     <div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span class="muted small grow">Version ${VERSION}</span><button class="btn sm ghost" data-act="update">Nach Update suchen</button></div></section>`;
+}
+function syncCard(){
+  if(!SB_URL) return '';
+  let body='';
+  if(ui.conflict){const d=new Date(Number(ui.conflict.updated_at));body=`<p class="small">In deinem Konto sind schon Daten, zuletzt geändert am ${d.toLocaleDateString('de-DE')} um ${d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}. Welche möchtest du auf diesem Gerät behalten?</p>
+    <button class="btn" data-act="takeremote">Daten aus dem Konto laden</button><button class="btn ghost" data-act="takelocal">Daten von diesem Gerät hochladen</button>
+    <p class="muted small">Tipp: Nimm die Daten von dem Gerät, das du bisher am meisten benutzt hast.</p>`}
+  else if(!sbUser){body=`<p class="muted small">Melde dich auf iPhone und MacBook mit demselben Konto an, dann sind deine Daten überall gleich.</p>
+    <div class="form">${inp('au-e','E-Mail','email','autocomplete="email" autocapitalize="off"')}${inp('au-p','Passwort (mind. 6 Zeichen)','password','autocomplete="current-password" data-submit="login"')}
+    <div class="row wrapr"><button class="btn" data-act="login">Anmelden</button><button class="btn ghost" data-act="signup">Konto anlegen</button></div>
+    ${ui.authMsg?`<p class="small">${esc(ui.authMsg)}</p>`:''}</div>`}
+  else body=`<p class="small">Angemeldet als <strong>${esc(sbUser.email)}</strong></p><div class="row wrapr"><button class="btn sm" data-act="syncnow">Jetzt synchronisieren</button><button class="btn sm ghost" data-act="logout">Abmelden</button></div>`;
+  return `<section class="card"><div class="sec-h"><h2>Synchronisierung</h2></div>${syncLine()}${body}</section>`;
 }
 function pickerHtml(){
   const list=S.tasks.filter(t=>!t.today&&!t.done);
@@ -619,6 +678,17 @@ const A={
   ideaadd(){const t=fv('i-t').trim();if(t){S.ideas.push({id:uid(),t});clear('i-t');ui.refocus='i-t'}},
   ideado(b){const i=S.ideas.find(x=>x.id===b.dataset.id);ui.f['q-o']=i.t;S.ideas=S.ideas.filter(x=>x!==i);toast('Trag es oben bei Quality Time ein.')},
   ideadel(b){S.ideas=S.ideas.filter(x=>x.id!==b.dataset.id)},
+  async login(){const e=fv('au-e').trim(),pw=fv('au-p');if(!e||!pw){ui.authMsg='Bitte E-Mail und Passwort eingeben.';return 'ui'}
+    ui.authMsg='Melde an…';render();const {error}=await sb.auth.signInWithPassword({email:e,password:pw});
+    ui.authMsg=error?(/confirm/i.test(error.message)?'Bitte bestätige zuerst den Link in der E-Mail von Supabase, dann hier anmelden.':'Das hat nicht geklappt. Stimmen E-Mail und Passwort?'):'';if(!error)clear('au-p');return 'ui'},
+  async signup(){const e=fv('au-e').trim(),pw=fv('au-p');if(!e||pw.length<6){ui.authMsg='Bitte E-Mail und ein Passwort mit mindestens 6 Zeichen eingeben.';return 'ui'}
+    ui.authMsg='Lege Konto an…';render();const {data,error}=await sb.auth.signUp({email:e,password:pw,options:{emailRedirectTo:location.origin+location.pathname}});
+    if(error){ui.authMsg='Das hat nicht geklappt: '+error.message;return 'ui'}
+    ui.authMsg=data.session?'':'Fast geschafft! Öffne die E-Mail von Supabase, tippe auf den Link und melde dich dann hier an.';return 'ui'},
+  async logout(){await sb.auth.signOut();S._linked=false;save(false);toast('Abgemeldet. Deine Daten bleiben auf diesem Gerät.');return 'ui'},
+  async syncnow(){await pull();return false},
+  async takeremote(){const d=ui.conflict;ui.conflict=null;applyRemote(d);toast('Daten aus dem Konto geladen.');return 'ui'},
+  async takelocal(){ui.conflict=null;S._ts=Date.now();await push();toast('Daten hochgeladen.');return 'ui'},
   async update(){toast('Suche nach Updates…');try{const r=await navigator.serviceWorker?.getRegistration();if(r){await r.update();const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}setTimeout(()=>location.reload(),600);return false},
   async export(){const blob=new Blob([JSON.stringify(S)],{type:'application/json'}),name='nessaflow-'+today()+'.json';
     try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'NessaFlow-Sicherung'});return false}}catch(err){if(err&&err.name==='AbortError')return false}
@@ -656,9 +726,10 @@ document.addEventListener('change',e=>{
   if(el.type==='date'||el.type==='time')ui.f[el.id]=el.value;
 });
 document.addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.toggle){ui[d.dataset.toggle]=d.open;const s=d.querySelector('summary .muted');if(s)s.textContent=d.open?'Zuklappen':'Aufklappen'}},true);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!F)render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(!F)render();if(sbUser)pull()}});
 
 render();
+sbInit();
 if('serviceWorker' in navigator&&location.protocol==='https:'){
   const had=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
