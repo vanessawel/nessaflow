@@ -175,7 +175,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.6';
+const VERSION='2.7';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -203,7 +203,7 @@ function starter(){
   s.tasks=[{id:uid(),title:'Wäsche waschen (Beispiel)',area:'org',steps:[{id:uid(),t:'Wäschekorb ins Bad tragen',done:false},{id:uid(),t:'Maschine anstellen',done:false},{id:uid(),t:'Wäsche aufhängen',done:false}],today:dkey(),done:false}];
   return s;
 }
-const EVENING=[['Frühstück + Kaffee vorbereiten',10],['Tasche packen',5],['Kleidung rauslegen',5],['Duschen',15],['Skincare',10],['Ilvy-Gassi-Runde',15]];
+const EVENING=[['Frühstück + Kaffee vorbereiten',10],['Tasche packen',5],['Kleidung rauslegen',5],['Duschen',30],['Skincare',10],['Ilvy-Gassi-Runde',15]];
 const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga',15],['Kuscheleinheit mit Ilvy',10],['Anziehen',5],['Haare machen',5],['Schminken',10],['Schmuck anlegen',2],['Kaffee kochen und Frühstück einpacken',10],['Gassi-Runde = Weg zur Arbeit',45]];
 function defRoutines(){return[
   {id:'morgen',name:'Morgenroutine',time:'06:00',steps:[{id:uid(),t:'Ein Glas Wasser trinken'},{id:uid(),t:'Medikamente nehmen'},{id:uid(),t:'Zähne putzen'},{id:uid(),t:'3 Aufgaben für heute wählen'}]},
@@ -220,6 +220,7 @@ function migrate(s){
   if(!s._morning3){const m=s.routines.find(r=>r.id==='morgen');const g=m&&m.steps.find(x=>x.t==='Gassi gehen (mind. 30 Min.)');if(g){g.t='Gassi-Runde = Weg zur Arbeit';g.min=45}s._morning3=true}
   if(!s._morning4){const m=s.routines.find(r=>r.id==='morgen');if(m&&m.time==='07:30')m.time='06:00';s._morning4=true}
   if(!s._evening1){const a=s.routines.find(r=>r.id==='abend');if(a){a.steps=EVENING.map(([t,min])=>({id:uid(),t,min}));a.time=''}s._evening1=true}
+  if(!s._evening2){const a=s.routines.find(r=>r.id==='abend');const d=a&&a.steps.find(x=>x.t==='Duschen');if(d&&d.min===15)d.min=30;s._evening2=true}
   s.v=2; return s;
 }
 let S; try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
