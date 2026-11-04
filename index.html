@@ -180,7 +180,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.8';
+const VERSION='2.9';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -213,13 +213,16 @@ const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga'
 function defRoutines(){return[
   {id:'morgen',name:'Morgenroutine',time:'06:00',steps:[{id:uid(),t:'Ein Glas Wasser trinken'},{id:uid(),t:'Medikamente nehmen'},{id:uid(),t:'Zähne putzen'},{id:uid(),t:'3 Aufgaben für heute wählen'}]},
   {id:'abend',name:'Abendroutine',time:'21:30',steps:[{id:uid(),t:'Tasche für morgen packen'},{id:uid(),t:'Handy ans Ladekabel, weg vom Bett'},{id:uid(),t:'Kurz notieren, was gut lief'}]}]}
-const ilvyRoutine=()=>({id:'ilvy',name:'Ilvy heute',time:'',steps:[{id:uid(),t:'Morgens füttern'},{id:uid(),t:'Gassi am Morgen'},{id:uid(),t:'Gassi am Mittag'},{id:uid(),t:'Abends füttern'},{id:uid(),t:'Gassi am Abend'},{id:uid(),t:'Frisches Wasser'}]});
+const ILVY=[['Dehnübungen machen'],['Gassirunde am Morgen',45],['Näpfe wechseln/waschen'],['Frisches Wasser geben'],['Morgens füttern'],['Gassirunde am Mittag'],['Mittagssnack füttern'],['Gassirunde am Abend'],['Physio-Übungen',null,[1,3,5]],['Bürsten'],['Abends füttern'],['Letzte Löserunde']];
+const ilvySteps=()=>ILVY.map(([t,min,days])=>{const s={id:uid(),t};if(min)s.min=min;if(days)s.days=days;return s});
+const ilvyRoutine=()=>({id:'ilvy',name:'Ilvy heute',time:'',steps:ilvySteps(),_v:2});
 function migrate(s){
   if(!s||!s.v) s=starter();
   const b=blank();
   for(const k in b) if(s[k]===undefined) s[k]=b[k];
   if(!s.routines.length) s.routines=defRoutines();
   if(!s.routines.find(r=>r.id==='ilvy')) s.routines.push(ilvyRoutine());
+  {const iv=s.routines.find(r=>r.id==='ilvy');if(iv&&!iv._v){iv.steps=ilvySteps();iv._v=2}}
   s.tasks.forEach(t=>{if(!t.area)t.area='org';if(!t.steps)t.steps=[]});
   if(!s._morning2){const m=s.routines.find(r=>r.id==='morgen');if(m){m.steps=MORNING.map(([t,min])=>({id:uid(),t,min}))}s._morning2=true}
   if(!s._morning3){const m=s.routines.find(r=>r.id==='morgen');const g=m&&m.steps.find(x=>x.t==='Gassi gehen (mind. 30 Min.)');if(g){g.t='Gassi-Runde = Weg zur Arbeit';g.min=45}s._morning3=true}
@@ -320,22 +323,23 @@ function taskHtml(t,mode){ // mode: today | inbox | plain
       ${open&&!t.done?`<div class="fr form">${inp('step-'+t.id,'Kleiner Schritt, 5 bis 15 Minuten','text','data-submit="addstep" data-id="'+t.id+'"')}<button class="btn sm" data-act="addstep" data-id="${t.id}">+</button></div>`:''}
     </div></div>`;
 }
+const activeSteps=(r,k=today())=>r.steps.filter(s=>!s.days||s.days.includes(parseD(k).getDay()));
 const fmtMin=m=>m>=60?Math.floor(m/60)+' Std.'+(m%60?' '+(m%60)+' Min.':''):m+' Min.';
 function addMin(hhmm,m){if(!hhmm)return'';const [h,mi]=hhmm.split(':').map(Number);const t=h*60+mi+m;return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
 function routineHtml(r,editable){
-  const rd=rDone(r.id), ed=ui.redit===r.id, pct=r.steps.length?rd.length/r.steps.length*100:0;
-  const total=r.steps.reduce((a,s)=>a+(s.min||0),0), leftMin=r.steps.filter(s=>!rd.includes(s.id)).reduce((a,s)=>a+(s.min||0),0);
-  return `<div class="row"><div class="grow">${r.time?`<div class="eyebrow">${esc(r.time)} Uhr</div>`:r.id==='abend'?'<div class="eyebrow">Flexibel nach dem Abendkurs</div>':''}<h2>${esc(r.name)}</h2></div><strong class="num">${rd.length}/${r.steps.length}</strong>${editable?`<button class="btn sm ghost" data-act="redit" data-r="${r.id}">${ed?'Fertig':'Bearbeiten'}</button>`:''}</div>
+  const ed=ui.redit===r.id, steps=ed?r.steps:activeSteps(r), rd=rDone(r.id).filter(id=>steps.some(s=>s.id===id)), pct=steps.length?rd.length/steps.length*100:0;
+  const total=steps.reduce((a,s)=>a+(s.min||0),0), leftMin=steps.filter(s=>!rd.includes(s.id)).reduce((a,s)=>a+(s.min||0),0);
+  return `<div class="row"><div class="grow">${r.time?`<div class="eyebrow">${esc(r.time)} Uhr</div>`:r.id==='abend'?'<div class="eyebrow">Flexibel nach dem Abendkurs</div>':''}<h2>${esc(r.name)}</h2></div><strong class="num">${rd.length}/${steps.length}</strong>${editable?`<button class="btn sm ghost" data-act="redit" data-r="${r.id}">${ed?'Fertig':'Bearbeiten'}</button>`:''}</div>
     ${total?`<p class="small"><strong>${fmtMin(total)}</strong> insgesamt${r.time?` · Start ${esc(r.time)} Uhr, fertig gegen ${addMin(r.time,total)} Uhr`:leftMin?` · wenn du jetzt startest, fertig gegen ${addMin(new Date().toTimeString().slice(0,5),leftMin)} Uhr`:''}${rd.length&&leftMin?` · noch ${fmtMin(leftMin)}`:''}</p>`:''}
     <div class="bar"><b style="width:${pct}%"></b></div>
-    <div class="steps">${r.steps.map((s,i)=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}</span>${s.min?`<span class="muted small num">${s.min} Min.</span>`:''}${ed?`<button class="x" data-act="rmove" data-r="${r.id}" data-s="${s.id}" data-d="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
+    <div class="steps">${steps.map((s,i)=>`<div class="step ${rd.includes(s.id)?'on':''}"><button class="chk sq ${rd.includes(s.id)?'on':''}" data-act="rstep" data-r="${r.id}" data-s="${s.id}" aria-label="Erledigt"></button><span class="grow">${esc(s.t)}${s.days?` <span class="pill">${s.days.map(d=>WD[d]).join(', ')}</span>`:''}</span>${s.min?`<span class="muted small num">${s.min} Min.</span>`:''}${ed?`<button class="x" data-act="rmove" data-r="${r.id}" data-s="${s.id}" data-d="-1" aria-label="Nach oben" ${i===0?'disabled':''}>↑</button><button class="x" data-act="rdel" data-r="${r.id}" data-s="${s.id}" aria-label="Löschen">×</button>`:''}</div>`).join('')}</div>
     ${ed?`<div class="fr">${inp('r-'+r.id,'Neuer Schritt','text','data-submit="radd" data-r="'+r.id+'"')}${inp('rm-'+r.id,'Min.','text','inputmode="numeric" style="flex:0 0 70px"')}<button class="btn sm" data-act="radd" data-r="${r.id}">+</button></div>
       ${r.time?`<div class="fr"><span class="eyebrow">Uhrzeit</span><input class="in narrow" type="time" id="rt-${r.id}" value="${esc(r.time)}" data-change="rtime" data-r="${r.id}"></div>`:''}`:''}`;
 }
 function routineWeek(r){
-  const days=last7(), n=r.steps.length||1;
-  const full=days.filter(k=>rDone(r.id,k).length>=n).length;
-  return `<div class="rw"><span class="small" style="font-weight:700">${esc(r.name.replace('routine',''))}</span><div class="rdots">${days.map(k=>{const c=rDone(r.id,k).length;return `<i class="${c>=n?'on':c?'part':''} ${k===today()?'now':''}" title="${fmtD(k)}"></i>`}).join('')}</div><span class="muted small num" title="komplett geschafft">${full}/7</span></div>`;
+  const days=last7();
+  const full=days.filter(k=>rDone(r.id,k).length>=(activeSteps(r,k).length||1)).length;
+  return `<div class="rw"><span class="small" style="font-weight:700">${esc(r.name.replace('routine',''))}</span><div class="rdots">${days.map(k=>{const c=rDone(r.id,k).length,n=activeSteps(r,k).length||1;return `<i class="${c>=n?'on':c?'part':''} ${k===today()?'now':''}" title="${fmtD(k)}"></i>`}).join('')}</div><span class="muted small num" title="komplett geschafft">${full}/7</span></div>`;
 }
 function addArea(area,ph){return `<div class="fr">${inp('add-'+area,ph,'text','data-submit="addtask" data-area="'+area+'"')}<button class="btn" data-act="addtask" data-area="${area}">Merken</button></div>`}
 
@@ -701,7 +705,7 @@ const A={
   addev(){const t=fv('ev-t').trim(),d=$('#ev-d').value,h=$('#ev-h').value;if(!t){toast('Wie heißt der Termin?');return false}if(!d){toast('Bitte ein Datum wählen.');return false}S.events.push({id:uid(),title:t,date:d,time:h});clear('ev-t','ev-h','ev-d');toast('Termin eingetragen.')},
   delev(b){S.events=S.events.filter(e=>e.id!==b.dataset.id)},
   allev(){ui.allEv=!ui.allEv},
-  rstep(b){const k=today();S.rlog[k]=S.rlog[k]||{};const arr=S.rlog[k][b.dataset.r]=S.rlog[k][b.dataset.r]||[];const i=arr.indexOf(b.dataset.s);if(i>=0)arr.splice(i,1);else{arr.push(b.dataset.s);const r=routine(b.dataset.r);if(arr.length===r.steps.length)toast(r.name+' geschafft!')}},
+  rstep(b){const k=today();S.rlog[k]=S.rlog[k]||{};const arr=S.rlog[k][b.dataset.r]=S.rlog[k][b.dataset.r]||[];const i=arr.indexOf(b.dataset.s);if(i>=0)arr.splice(i,1);else{arr.push(b.dataset.s);const r=routine(b.dataset.r);if(arr.length>=activeSteps(r).length)toast(r.name+' geschafft!')}},
   redit(b){ui.redit=ui.redit===b.dataset.r?null:b.dataset.r},
   radd(b){const r=routine(b.dataset.r),id='r-'+r.id,v=fv(id).trim(),m=parseInt(fv('rm-'+r.id))||0;if(v){r.steps.push({id:uid(),t:v,min:m||undefined});clear(id,'rm-'+r.id);ui.refocus=id}},
   rmove(b){const r=routine(b.dataset.r),i=r.steps.findIndex(x=>x.id===b.dataset.s),j=i+Number(b.dataset.d);if(i<0||j<0||j>=r.steps.length)return false;[r.steps[i],r.steps[j]]=[r.steps[j],r.steps[i]]},
