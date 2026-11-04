@@ -143,6 +143,11 @@ input[type=date].in,input[type=time].in{min-height:46px}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;flex:none}
 .sync.ok i{background:var(--good)}
 .sync.err i{background:var(--warn)}
+.kbar{position:relative;height:14px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.kbar b{position:relative;display:block;height:100%;border-radius:99px;opacity:.9}
+.kzone{position:absolute;top:0;bottom:0;background:var(--good-soft);border-left:2px solid var(--good);border-right:2px solid var(--good)}
+.col.w>b{background:var(--warn)}
+select.in{background-image:none}
 .insight{background:var(--sun-soft);border-radius:12px;padding:12px 14px}
 details>summary{list-style:none;cursor:pointer}
 details>summary::-webkit-details-marker{display:none}
@@ -175,7 +180,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.7';
+const VERSION='2.8';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -221,6 +226,13 @@ function migrate(s){
   if(!s._morning4){const m=s.routines.find(r=>r.id==='morgen');if(m&&m.time==='07:30')m.time='06:00';s._morning4=true}
   if(!s._evening1){const a=s.routines.find(r=>r.id==='abend');if(a){a.steps=EVENING.map(([t,min])=>({id:uid(),t,min}));a.time=''}s._evening1=true}
   if(!s._evening2){const a=s.routines.find(r=>r.id==='abend');const d=a&&a.steps.find(x=>x.t==='Duschen');if(d&&d.min===15)d.min=30;s._evening2=true}
+  if(!s._meds1){const want=[['Metformin','500 mg','morgens','med'],['Medikinet','20 mg','morgens','med'],['Omega 3','','morgens','supp'],['Vitamin D','','morgens','supp'],['Metformin','1000 mg','abends','med'],['Elektrolyte','','einmal täglich','supp']];
+    want.forEach(([name,dose,time,kind])=>{if(!s.meds.find(m=>m.name.toLowerCase()===name.toLowerCase()&&m.time===time))s.meds.push({id:uid(),name,dose,time,kind})});s._meds1=true}
+  if(s.weightStart==null)s.weightStart=88.8;
+  if(!s.kcal)s.kcal={min:1600,max:1800};
+  if(!s.food)s.food={};
+  if(!s.dishes)s.dishes={fruehstueck:[],mittag:[],abend:[],snack:[]};
+  Object.values(s.health).forEach(x=>{if(x.water!=null&&x.ml==null){x.ml=x.water*250}});
   s.v=2; return s;
 }
 let S; try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
@@ -359,6 +371,7 @@ function vOrg(){
     ${ui.picking?pickerHtml():''}
     <p class="muted small">Mehr als drei braucht es nicht. Alles andere wartet entspannt.</p>
   </section>
+  ${waterCard()}
   <section class="card sun">
     <div class="eyebrow">Jetzt dran</div>
     ${routineHtml(r,false)}
@@ -389,6 +402,17 @@ function syncCard(){
   else body=`<p class="small">Angemeldet als <strong>${esc(sbUser.email)}</strong></p><div class="row wrapr"><button class="btn sm" data-act="syncnow">Jetzt synchronisieren</button><button class="btn sm ghost" data-act="logout">Abmelden</button></div>`;
   return `<section class="card"><div class="sec-h"><h2>Synchronisierung</h2></div>${syncLine()}${body}</section>`;
 }
+const WATER_GOAL=3000;
+const liters=ml=>(ml/1000).toFixed(2).replace(/0$/,'').replace('.',',');
+function waterCard(){
+  const ml=H().ml||0, pct=Math.min(100,ml/WATER_GOAL*100), hr=new Date().getHours();
+  const should=Math.round(Math.min(1,Math.max(0,(hr-6)/15))*WATER_GOAL/250)*250;
+  const msg=ml>=WATER_GOAL?'3 Liter geschafft! Dein Körper sagt danke.':ml>=should?'Du liegst gut in der Zeit.':`Zu dieser Uhrzeit wären etwa ${liters(should)} L gut. Trink gleich ein Glas.`;
+  return `<section class="card"><div class="sec-h"><h2>Wasser</h2><span class="num"><strong>${liters(ml)} L</strong> <span class="muted small">von 3 L</span></span></div>
+    <div class="bar"><b style="width:${pct}%;background:var(--accent)"></b></div>
+    <div class="row wrapr"><button class="btn sm" data-act="ml" data-v="250">+ Glas 250 ml</button><button class="btn sm" data-act="ml" data-v="500">+ Flasche 500 ml</button><button class="btn sm ghost" data-act="ml" data-v="-250" ${ml?'':'disabled'}>− 250 ml</button></div>
+    <p class="muted small">${msg}</p></section>`;
+}
 function pickerHtml(){
   const list=S.tasks.filter(t=>!t.today&&!t.done);
   return `<div class="card" style="background:var(--sunk);border:0">
@@ -404,7 +428,7 @@ function vHealth(){
   const sl=[['<5',4.5],['5',5],['6',6],['7',7],['8',8],['9+',9.5]];
   const moods=[[1,'mies'],[2,'naja'],[3,'okay'],[4,'gut'],[5,'super']];
   let drops='';for(let i=1;i<=8;i++)drops+=`<button class="drop ${(h.water||0)>=i?'on':''}" data-act="water" data-v="${i}" aria-label="${i} Gläser"></button>`;
-  const ml=S.medLog[k]||[], times=['morgens','mittags','abends','bei Bedarf'];
+  const ml=S.medLog[k]||[], times=['morgens','mittags','abends','einmal täglich','bei Bedarf'];
   const sportWeek=S.sport.filter(s=>daysUntil(s.date)>-7);
   const wk=S.weight.slice().sort((a,b)=>a.date.localeCompare(b.date));
   return `
@@ -415,7 +439,6 @@ function vHealth(){
       <span class="eyebrow">Stimmung</span><div class="chips">${moods.map(([v,l])=>`<button class="chip ${h.mood===v?'on':''}" data-act="h" data-k="mood" data-v="${v}">${l}</button>`).join('')}</div>
       <span class="eyebrow">Energie</span><div class="chips">${[[1,'leer'],[2,'wenig'],[3,'mittel'],[4,'viel']].map(([v,l])=>`<button class="chip ${h.energy===v?'on':''}" data-act="h" data-k="energy" data-v="${v}">${l}</button>`).join('')}</div>
       <span class="eyebrow">Schlaf (Std.)</span><div class="chips">${sl.map(([l,v])=>`<button class="chip ${h.sleep===v?'on':''}" data-act="h" data-k="sleep" data-v="${v}">${esc(l)}</button>`).join('')}</div>
-      <span class="eyebrow">Wasser</span><div class="row wrapr"><div class="water">${drops}</div><span class="muted small">${h.water||0} von 8</span></div>
     </div>
     <input class="in" id="h-note" placeholder="Notiz: Was beschäftigt dich, was tut dir gut?" value="${esc(h.note||'')}" data-change="hnote">
   </section>
@@ -428,6 +451,7 @@ function vHealth(){
       <div class="chips">${[['med','Medikament'],['supp','Supplement']].map(([v,l])=>`<button class="chip ${(fv('m-k')||'med')===v?'on':''}" data-act="setf" data-k="m-k" data-v="${v}">${l}</button>`).join('')}</div>
       <button class="btn" data-act="medadd">Hinzufügen</button></div>`:''}
   </section>
+  ${kcalCard()}
   <section class="card">
     <div class="sec-h"><h2>Sport & Bewegung</h2><span class="muted small num">${sportWeek.reduce((a,s)=>a+(s.min||0),0)} Min. in 7 Tagen</span></div>
     <div class="chips">${SPORTS.map(s=>`<button class="chip ${fv('sp-t')===s?'on':''}" data-act="setf" data-k="sp-t" data-v="${esc(s)}">${esc(s)}</button>`).join('')}</div>
@@ -444,13 +468,34 @@ function vHealth(){
   </section>
   ${weekHtml()}`;
 }
+const MEALS=[['fruehstueck','Frühstück'],['mittag','Mittagessen'],['abend','Abendessen'],['snack','Snack']];
+function kcalCard(){
+  const list=S.food[today()]||[], sum=list.reduce((a,x)=>a+(x.kcal||0),0), {min,max}=S.kcal;
+  const scale=max*1.25, pct=Math.min(100,sum/scale*100), lo=min/scale*100, hi=max/scale*100;
+  const meal=fv('k-m')||(new Date().getHours()<11?'fruehstueck':new Date().getHours()<16?'mittag':'abend');
+  const dishes=S.dishes[meal]||[];
+  const msg=sum===0?'Trag ein, was du isst. Am besten direkt nach dem Essen.':sum<min?`Noch ${min-sum} bis ${max-sum} kcal bis zu deinem Ziel.`:sum<=max?'Du bist genau in deinem Zielbereich. Super!':`${sum-max} kcal über deinem Bereich. Kein Drama, morgen ist ein neuer Tag.`;
+  return `<section class="card">
+    <div class="sec-h"><h2>Kalorien heute</h2><span class="num"><strong>${sum}</strong> <span class="muted small">kcal</span></span></div>
+    <div class="kbar"><span class="kzone" style="left:${lo}%;width:${hi-lo}%"></span><b style="width:${pct}%;background:${sum>max?'var(--warn)':sum>=min?'var(--good)':'var(--accent)'}"></b></div>
+    <div class="row muted small num" style="justify-content:space-between"><span>0</span><span>Ziel ${min.toLocaleString('de-DE')}–${max.toLocaleString('de-DE')} kcal</span></div>
+    <p class="muted small">${msg}</p>
+    ${list.length?`<div class="list">${MEALS.map(([k,l])=>list.filter(x=>x.meal===k).map(x=>`<div class="li"><span class="when">${l.replace('essen','')}</span><span class="grow">${esc(x.name)}</span><span class="num muted small">${x.kcal} kcal</span><button class="x" data-act="fooddel" data-id="${x.id}" aria-label="Löschen">×</button></div>`).join('')).join('')}</div>`:''}
+    <div class="form" style="border-top:1px solid var(--line);padding-top:12px">
+      <div class="chips">${MEALS.map(([k,l])=>`<button class="chip ${meal===k?'on':''}" data-act="setf" data-k="k-m" data-v="${k}">${l}</button>`).join('')}</div>
+      ${dishes.length?`<select class="in" id="k-sel" data-change="dish"><option value="">Lieblingsgericht wählen …</option>${dishes.map((d,i)=>`<option value="${i}">${esc(d.name)} · ${d.kcal} kcal</option>`).join('')}</select>`:''}
+      <div class="fr">${inp('k-n','Was hast du gegessen?')}${inp('k-k','kcal','text','inputmode="numeric" style="flex:0 0 90px" data-submit="foodadd"')}</div>
+      <div class="row wrapr"><button class="btn" data-act="foodadd">Eintragen</button><button class="btn ghost" data-act="dishsave">Als Lieblingsgericht merken</button></div>
+      ${dishes.length&&ui.dishEdit?`<div class="list">${dishes.map((d,i)=>`<div class="li"><span class="grow">${esc(d.name)}</span><span class="muted small num">${d.kcal} kcal</span><button class="x" data-act="dishdel" data-m="${meal}" data-i="${i}" aria-label="Löschen">×</button></div>`).join('')}</div>`:''}
+      ${dishes.length?`<button class="link" data-act="dishedit">${ui.dishEdit?'Fertig':'Lieblingsgerichte bearbeiten'}</button>`:''}
+    </div></section>`;
+}
 function wGoalHtml(wk){
   const g=S.weightGoal;
-  if(!g||ui.wgEdit) return `<div class="fr">${inp('wg','Zielgewicht in kg','text','inputmode="decimal" data-submit="wgset"')}<button class="btn sm ghost" data-act="wgset">Ziel speichern</button></div>`;
-  if(!wk.length) return `<p class="small">Dein Ziel: <strong>${String(g).replace('.',',')} kg</strong>. <button class="link" data-act="wgedit">Ändern</button></p>`;
-  const start=wk[0].kg, cur=wk[wk.length-1].kg, total=start-g, done=start-cur, pct=total>0?Math.max(0,Math.min(100,done/total*100)):0;
+  if(!g||ui.wgEdit) return `${S.weightStart?`<p class="small">Startgewicht: <strong>${String(S.weightStart).replace('.',',')} kg</strong>${wk.length?` · bisher ${fmtDiff(wk[wk.length-1].kg-S.weightStart)}`:''}</p>`:''}<p class="muted small">Leg ein Zielgewicht fest, dann zeigt dir ein Balken deinen Fortschritt.</p><div class="fr">${inp('wg','Zielgewicht in kg','text','inputmode="decimal" data-submit="wgset"')}<button class="btn sm ghost" data-act="wgset">Ziel speichern</button></div>`;
+  const start=S.weightStart||(wk[0]&&wk[0].kg)||g, cur=wk.length?wk[wk.length-1].kg:start, total=start-g, done=start-cur, pct=total>0?Math.max(0,Math.min(100,done/total*100)):0;
   const left=cur-g;
-  return `<div class="eyebrow">Dein Ziel: ${String(g).replace('.',',')} kg</div><div class="bar"><b style="width:${pct}%"></b></div>
+  return `<div class="row muted small num" style="justify-content:space-between"><span>Start ${String(start).replace('.',',')} kg</span><span>Ziel ${String(g).replace('.',',')} kg</span></div><div class="bar" style="height:14px"><b style="width:${pct}%"></b></div><div class="eyebrow">${Math.round(pct)} % geschafft</div>
     <p class="small">${left<=0?'Ziel erreicht! Wahnsinn, was du geschafft hast.':`Noch ${left.toFixed(1).replace('.',',')} kg. ${done>0?'Schon '+done.toFixed(1).replace('.',',')+' kg geschafft, seit du angefangen hast.':'Langsam und stetig ist der Weg, der bleibt.'}`} <button class="link" data-act="wgedit">Ändern</button></p>`;
 }
 const fmtDiff=d=>(d>0?'+':d<0?'−':'±')+Math.abs(d).toFixed(1).replace('.',',')+' kg';
@@ -474,6 +519,8 @@ function weekHtml(){
     ${row('Stimmung',k=>{const m=g(k).mood;return col(m,5)+`<span>${m?['','mies','naja','okay','gut','super'][m]:'·'}</span>`})}
     ${row('Schlaf (Std.)',k=>col(g(k).sleep,10,'s')+`<span>${g(k).sleep!=null?esc(({4.5:'<5',9.5:'9+'})[g(k).sleep]||g(k).sleep):'·'}</span>`)}
     ${row('Bewegung (Min.)',k=>col(sm(k),60,'g')+`<span>${sm(k)||'·'}</span>`)}
+    ${row('Wasser (L)',k=>{const m=(g(k).ml)||0;return col(m,WATER_GOAL)+`<span>${m?liters(m):'·'}</span>`})}
+    ${row('Kalorien',k=>{const s=(S.food[k]||[]).reduce((a,x)=>a+x.kcal,0);return col(s,S.kcal.max*1.25,s>S.kcal.max?'w':s>=S.kcal.min?'g':'')+`<span>${s||'·'}</span>`})}
     ${row('Medikamente',k=>{const n=(S.medLog[k]||[]).length,tot=S.meds.length;return `<div class="dots"><i class="${tot&&n>=tot?'on':''}"></i></div><span>${tot?n+'/'+tot:'·'}</span>`})}
     <div class="insight"><div class="eyebrow">Was mir auffällt</div><p>${ins}</p></div></section>`;
 }
@@ -661,6 +708,7 @@ const A={
   rdel(b){const r=routine(b.dataset.r);r.steps=r.steps.filter(x=>x.id!==b.dataset.s)},
   h(b){const h=H(),k=b.dataset.k,v=Number(b.dataset.v);h[k]=h[k]===v?undefined:v},
   water(b){const h=H(),v=Number(b.dataset.v);h.water=h.water===v?v-1:v},
+  ml(b){const h=H(),v=Number(b.dataset.v);h.ml=Math.max(0,(h.ml||0)+v);if(v>0&&h.ml>=WATER_GOAL&&h.ml-v<WATER_GOAL)toast('3 Liter geschafft! '+praise())},
   setf(b){const k=b.dataset.k;ui.f[k]=ui.f[k]===b.dataset.v?'':b.dataset.v;return 'ui'},
   medit(){ui.medit=!ui.medit},
   medadd(){const n=fv('m-n').trim();if(!n){toast('Wie heißt es?');return false}S.meds.push({id:uid(),name:n,dose:fv('m-d').trim(),time:fv('m-t')||'morgens',kind:fv('m-k')||'med'});clear('m-n','m-d');toast('Hinzugefügt.')},
@@ -669,6 +717,11 @@ const A={
   sportadd(){const type=fv('sp-o').trim()||fv('sp-t');if(!type){toast('Welche Sportart war es?');return false}S.sport.push({id:uid(),date:today(),type,min:Number(fv('sp-m'))||null});clear('sp-o','sp-t','sp-m');toast('Bewegung eingetragen. '+praise())},
   sportdel(b){S.sport=S.sport.filter(s=>s.id!==b.dataset.id)},
   wgset(){const v=num(fv('wg'));if(!(v>20&&v<400)){toast('Bitte das Zielgewicht in kg eintragen.');return false}S.weightGoal=Math.round(v*10)/10;clear('wg');ui.wgEdit=false;toast('Ziel gespeichert. Du schaffst das, Schritt für Schritt.')},
+  foodadd(){const n=fv('k-n').trim(),k=parseInt(fv('k-k'));if(!n||!(k>=0)){toast('Bitte Gericht und kcal eintragen.');return false}const d=today();(S.food[d]=S.food[d]||[]).push({id:uid(),meal:fv('k-m')||(new Date().getHours()<11?'fruehstueck':new Date().getHours()<16?'mittag':'abend'),name:n,kcal:k});clear('k-n','k-k');toast(k+' kcal eingetragen.')},
+  fooddel(b){const d=today();S.food[d]=(S.food[d]||[]).filter(x=>x.id!==b.dataset.id)},
+  dishsave(){const n=fv('k-n').trim(),k=parseInt(fv('k-k'));if(!n||!(k>=0)){toast('Erst Gericht und kcal eintragen, dann merken.');return false}const m=fv('k-m')||(new Date().getHours()<11?'fruehstueck':new Date().getHours()<16?'mittag':'abend');(S.dishes[m]=S.dishes[m]||[]).push({name:n,kcal:k});toast('Als Lieblingsgericht gemerkt.')},
+  dishdel(b){S.dishes[b.dataset.m].splice(Number(b.dataset.i),1)},
+  dishedit(){ui.dishEdit=!ui.dishEdit},
   wgedit(){ui.wgEdit=!ui.wgEdit},
   showother(){ui.other=!ui.other},
   wadd(){const kg=num(fv('w-kg'));if(!(kg>20&&kg<400)){toast('Bitte das Gewicht in kg eintragen, z. B. 64,5.');return false}S.weight=S.weight.filter(w=>w.date!==today());S.weight.push({date:today(),kg:Math.round(kg*10)/10});clear('w-kg');toast('Eingetragen.')},
@@ -734,6 +787,7 @@ document.addEventListener('change',e=>{
   const el=e.target;
   if(el.id==='importIn'&&el.files[0]){const fr=new FileReader();fr.onload=()=>{try{const st=JSON.parse(fr.result);if(st&&st.v&&Array.isArray(st.tasks)){S=migrate(st);save();render();toast('Sicherung geladen.')}else toast('Diese Datei ist keine NessaFlow-Sicherung.')}catch(err){toast('Diese Datei ist keine NessaFlow-Sicherung.')}};fr.readAsText(el.files[0]);return}
   if(el.dataset.change==='rtime'){const r=routine(el.dataset.r);if(el.value){r.time=el.value;save()}}
+  if(el.dataset.change==='dish'&&el.value!==''){const m=fv('k-m')||(new Date().getHours()<11?'fruehstueck':new Date().getHours()<16?'mittag':'abend');const d=S.dishes[m][Number(el.value)];ui.f['k-n']=d.name;ui.f['k-k']=String(d.kcal);render();return}
   if(el.dataset.change==='hnote'){H().note=el.value.trim();save();toast('Notiz gespeichert.')}
   if(el.type==='date'||el.type==='time')ui.f[el.id]=el.value;
 });
