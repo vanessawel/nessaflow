@@ -175,7 +175,7 @@ nav.tabs svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2
 <script>
 (function(){
 const LS='nessaflow-v1';
-const VERSION='2.3';
+const VERSION='2.4';
 const SB_URL=''; // Supabase Project URL
 const SB_KEY=''; // Supabase anon public key
 const $=s=>document.querySelector(s);
@@ -203,7 +203,7 @@ function starter(){
   s.tasks=[{id:uid(),title:'Wäsche waschen (Beispiel)',area:'org',steps:[{id:uid(),t:'Wäschekorb ins Bad tragen',done:false},{id:uid(),t:'Maschine anstellen',done:false},{id:uid(),t:'Wäsche aufhängen',done:false}],today:dkey(),done:false}];
   return s;
 }
-const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga',15],['Kuscheleinheit mit Ilvy',10],['Anziehen',5],['Haare machen',5],['Schminken',10],['Schmuck anlegen',2],['Kaffee kochen und Frühstück einpacken',10],['Gassi gehen (mind. 30 Min.)',30]];
+const MORNING=[['Zähneputzen und Gesichtspflege',10],['Morgen-Yoga + Ilvy-Yoga',15],['Kuscheleinheit mit Ilvy',10],['Anziehen',5],['Haare machen',5],['Schminken',10],['Schmuck anlegen',2],['Kaffee kochen und Frühstück einpacken',10],['Gassi-Runde = Weg zur Arbeit',45]];
 function defRoutines(){return[
   {id:'morgen',name:'Morgenroutine',time:'07:30',steps:[{id:uid(),t:'Ein Glas Wasser trinken'},{id:uid(),t:'Medikamente nehmen'},{id:uid(),t:'Zähne putzen'},{id:uid(),t:'3 Aufgaben für heute wählen'}]},
   {id:'abend',name:'Abendroutine',time:'21:30',steps:[{id:uid(),t:'Tasche für morgen packen'},{id:uid(),t:'Handy ans Ladekabel, weg vom Bett'},{id:uid(),t:'Kurz notieren, was gut lief'}]}]}
@@ -216,6 +216,7 @@ function migrate(s){
   if(!s.routines.find(r=>r.id==='ilvy')) s.routines.push(ilvyRoutine());
   s.tasks.forEach(t=>{if(!t.area)t.area='org';if(!t.steps)t.steps=[]});
   if(!s._morning2){const m=s.routines.find(r=>r.id==='morgen');if(m){m.steps=MORNING.map(([t,min])=>({id:uid(),t,min}))}s._morning2=true}
+  if(!s._morning3){const m=s.routines.find(r=>r.id==='morgen');const g=m&&m.steps.find(x=>x.t==='Gassi gehen (mind. 30 Min.)');if(g){g.t='Gassi-Runde = Weg zur Arbeit';g.min=45}s._morning3=true}
   s.v=2; return s;
 }
 let S; try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
